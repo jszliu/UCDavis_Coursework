@@ -1,0 +1,38 @@
+---
+title: "First Assignment"
+---
+
+It is a quick exercise for you to get familiar with RStudio, Rmarkdown and GitHub. 
+
+
+##### (a) Make sure you have R 3.6.3!!
+
+```{r}
+R.version.string
+```
+
+##### (b) Make sure you have updated all your packages!
+
+```{r}
+options(repos = c(CRAN = "https://cran.rstudio.com"))
+old.packages(checkBuilt = TRUE)
+```
+
+
+Hint: Use the RStudio interface or by running `update.packages(ask = FALSE, checkBuilt = TRUE)` in the Console to update the outdated packages.
+
+##### (c) Create an R block by (Ctrl + Alt + I) or (Cmd + Alt + I) if you are on macOS. In the R block, write a R function `sum_of_squares` which gives
+$$
+\text{sum_of_squares}(x, y) = x^2 + y^2
+$$
+
+```{r}
+sum_of_squares=function(x,y){x^2+y^2}
+```
+
+
+
+```{r}
+stopifnot(sum_of_squares(3, 4) == 25)
+```
+
