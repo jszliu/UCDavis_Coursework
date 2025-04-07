@@ -1,0 +1,102 @@
+---
+title: "Question 1"
+---
+
+```{r, message = FALSE}
+library(tidyverse)
+library(gapminder)
+# use ?gapminder get the desciption of the dataset `gapminder`
+```
+
+Consider the dataset `gapminder`.
+
+##### (a) Modify the `continent` factor by classifying the Americas' countries into `South America` and `North America`
+    Hint: the following countries are in South America.
+    ```r
+    c("Argentina", "Bolivia", "Brazil", "Chile", "Colombia", "Ecuador", "Paraguay", "Peru", "Trinidad and Tobago", "Uruguay", "Venezuela")
+    ```
+```{r}
+my_gap=gapminder %>% 
+  mutate(continent=case_when(
+    country %in%c("Argentina", "Bolivia", "Brazil", "Chile", "Colombia", "Ecuador", "Paraguay", "Peru", "Trinidad and Tobago", "Uruguay", "Venezuela")~"South America",
+    continent=="Americas"~"North America",
+   TRUE ~ as.character(continent)) 
+    )
+
+
+```
+
+In the following questions, use the dataset modified in (a).
+
+Hint: you could use `case_when` function.
+
+
+##### (b) How many countries are there in the dataset? How about for each continent?
+```{r}
+my_gap %>%
+  summarize(totalcountries = n_distinct(country))
+
+
+my_gap %>%
+  group_by(continent) %>%
+  summarize(n = n(),
+            n_countries = n_distinct(country))
+
+
+```
+
+There are 142 countries in the dataset. 
+Africa has 52 countries.Asia has 33 countries. Europe has 30 countries.Oceania has 2 countries. North America has 14 countries. South America has 11 countries.
+
+
+
+##### (c) For each year, which country had the largest gdp per capital?
+```{r}
+my_gap %>% 
+   arrange(year) %>% 
+  group_by(year) %>% 
+  top_n(1,wt=(gdpPercap))
+
+
+```
+
+ Answer 1952,1957,1962,1967,1972,1977: Kuwait   1982:Saudi Arabia 1987:Norway 1992:Kuwait 1997:Norway
+
+
+
+
+##### (d) For each continent, which country experienced the sharpest increment rate in life expectancy from 1997 to 2007?
+```{r}
+gapminder1997 <- my_gap %>% filter(year==1997) %>% select(country, continent,  lifeExp) %>%
+    rename(lifeExp1997=lifeExp)
+gapminder2007 <- my_gap %>% filter(year==2007) %>% select(country, continent,  lifeExp) %>%
+    rename(lifeExp2007=lifeExp)
+dat <- inner_join(gapminder1997, gapminder2007)
+dat$rate <- (dat$lifeExp2007-dat$lifeExp1997)/dat$lifeExp1997
+dat %>% group_by(continent) %>% arrange(desc(rate)) %>% slice(1)
+```
+
+Answer:New Zealand in Oceania, Haiti in North America,Bolivia in South America,Albania in Europe, emen, Rep. in Asia,  Rwanda in Africa have the highest life expectency increment rate from 1997 to 2007
+
+
+
+##### (e) Focus on the data in year 2007, what are the correlation coefficients between life expectancy and gdp per capital for each continent?
+```{r}
+my_gap %>% filter(year==2007) %>% 
+           group_by(continent) %>% 
+           summarize(cor(lifeExp,gdpPercap))
+
+```
+
+
+
+
+
+
+##### (f) Visualize part (e) by plotting gdp per capital vs life expectancy.
+```{r}
+my_gap_2007=my_gap %>% filter(year==2007)
+ggplot(my_gap_2007,aes(x=lifeExp,y=gdpPercap,color=continent))+geom_point()+ggtitle( "gdp per capital vs life expectancy")+xlab("lifeExp")+ylab("gdpPercap")
+
+```
+

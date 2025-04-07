@@ -1,0 +1,91 @@
+---
+title: "Question 2"
+---
+
+Consider the `flights` dataset in the package `nycflights13`.
+
+```{r, message = FALSE}
+library(nycflights13)
+library(tidyverse)
+```
+
+
+##### (a) Add a column that is the amount of time gained in the air (`gain = dep_delay - arr_delay`)
+```{r}
+flights <-  flights %>% mutate(gain=dep_delay-arr_delay)
+
+```
+### gain is added on last column
+
+
+##### (b) Sort part (a) descedingly by the column you just created. Store the result as `flights_gain`.
+```{r}
+flights_gain <- flights %>% arrange(desc(gain))
+
+```
+
+
+##### (c) On average, did flights gain or lose time? (Hint: not average gain, but as percentage of positive gain.)
+```{r}
+  
+mean(flights_gain$gain>0, na.rm=T)
+```
+
+
+##### (d) On average, did flights heading to SeaTac ("SEA") gain or loose time?
+```{r}
+
+mean(flights_gain$gain[flights_gain$dest=="SEA"]>0, na.rm=T)
+
+```
+
+Gain time
+
+##### (e) Summerize the mean, min and max of the `air_time` column for flights from `JFK` to `SEA`.
+```{r}
+flights_gain %>% filter(origin=="JFK" & dest=="SEA") %>% 
+  summarise(
+    mean=mean(air_time, na.rm=T), 
+    min=min(air_time, na.rm=T), 
+    max=max(air_time, na.rm=T)
+  )
+
+
+```
+
+
+##### (f) In which month was the average departure delay the greatest?
+```{r}
+flights_gain %>% group_by(month) %>% summarise(avg=mean(dep_delay, na.rm=T)) %>% 
+  arrange(desc(avg))
+```
+July
+
+
+##### (g) In which airport were the average arrival delays the highest?
+```{r}
+
+flights_gain %>% group_by(dest) %>% summarise(avg=mean(arr_delay, na.rm=T)) %>% 
+  arrange(desc(avg)) %>% head(1)
+
+```
+
+CAE 
+
+#####  (h) Which city was flown to with the highest average speed?
+```{r}
+flights_gain %>% group_by(dest) %>% mutate(speed=distance/air_time) %>% summarise(avg=mean(speed, na.rm=T)) %>% 
+  arrange(desc(avg)) %>% head(1)
+
+
+```
+ANC
+
+##### (i) Create a data frame of the average arrival delay for each destination, then use` left_join` to join on the `airports` dataframe, which has the airport info. (Hint: read the documentation of `airports` for the airport codes.)
+
+```{r}
+flights_gain %>% group_by(dest) %>%  summarise(avg_delay=mean(arr_delay, na.rm=T)) %>% 
+  left_join(airports, by=c("dest"="faa"))
+
+```
+
