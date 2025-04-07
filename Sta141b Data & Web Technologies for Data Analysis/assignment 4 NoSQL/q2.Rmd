@@ -1,0 +1,128 @@
+---
+title: "Question2"
+---
+
+To connect to this MongoDB, you need to either on the campus network or connect via UCDavis VPN.
+
+In this question, do not download more than enough resources from the server. Let the server to do all the calculations if possible. (Limit the results to the first 10 rows if necessary.)
+
+The following code connects to a sample airbnb database. A sample of a document can be found at
+https://docs.atlas.mongodb.com/sample-data/sample-supplies/
+
+Each document in the `sales` collection represents a single sale from a store run by the supply company. Each document contains the item(s) purchased, information on the customer who made the purchase, and several other details regarding the sale.
+
+
+```{r}
+library(tidyverse)
+library(mongolite)
+
+m <- mongo("sales", db = "data", url = "mongodb://mongouser:secret@alan.ucdavis.edu/data")
+```
+
+Hint: to handle the items, you will need to use a `$unwind` stage in `aggregate`.
+
+The following unwinds the `items` array for a particular customer
+.
+```{r, paged.print = FALSE, eval = FALSE}
+m$aggregate('[
+  {"$match": {"customer.email": "cauho@witwuta.sv"}},
+  {"$unwind": "$items"}
+]')
+```
+
+
+The following gives a list of items for each transaction.
+```{r, paged.print = FALSE, , eval = FALSE}
+m$aggregate('[
+  {"$unwind": "$items"},
+  {"$group": {
+    "_id": "$_id",
+    "items": {"$addToSet" : "$items.name"},
+    "purchaseMethod": {"$first": "$purchaseMethod"}
+    }
+  },
+  {"$project": {"_id": false}},
+  {"$limit": 10}
+]')
+```
+
+
+
+##### (a)  Find the number of items in each transaction.
+
+```{r}
+m$aggregate('[
+  {"$unwind": "$items"},
+  {"$group": { 
+    "_id": "$_id", 
+    "item number": { "$sum": "$items.quantity" }
+    }
+  },
+  {"$limit": 10}
+]')
+```
+
+##### (b) Find the amount of money spent in each transaction. (Don't forget multiple the `quantity` of each item)
+```{r}
+m$aggregate('[
+  {"$unwind": "$items"},
+  {"$project": {"_id":1, "amount":{"$multiply":["$items.price", "$items.quantity"]}}},
+  {"$group": { 
+    "_id": "$_id", 
+    "total_amount": { "$sum": "$amount" }
+    }
+  },
+  {"$limit": 10}
+]')
+```
+
+
+##### (c) Compute each customer satisfaction and plot it against the transction amount (you could reuse the result from (b)).
+```{r}
+m$aggregate('[
+  {"$unwind": "$items"},
+  { 
+    "$project": {"_id":1, 
+    "amount":{"$multiply":["$items.price", "$items.quantity"]},
+     "customer.satisfaction":1}},
+  {"$group": { 
+    "_id": {
+      "id":"$_id",
+      "satisfaction":"$customer.satisfaction"
+    }, 
+    "total_amount": { "$sum": "$amount" }
+    }
+  }
+]') %>%   mutate(satisfaction = `_id`$satisfaction, `_id` = NULL) %>% 
+  ggplot(aes(x=total_amount, y=satisfaction)) + geom_point() +
+  labs(x="transction amount")
+```
+
+
+
+##### (d) Find the total sum of the transactions for each store.
+
+```{r}
+m$aggregate('[
+  {"$group": { 
+    "_id": "$storeLocation", 
+    "num": { "$sum": 1 }
+    }
+  }
+]')
+```
+
+##### (e) How many notepad were sold in total?
+
+```{r}
+m$aggregate('[
+  {"$unwind": "$items"},
+  {"$match": {"items.name":"notepad"}},
+  {"$group": { 
+    "_id": null, 
+    "num": { "$sum": "$items.quantity" }
+    }
+  },
+  {"$project":{"_id":0}}
+]')
+```

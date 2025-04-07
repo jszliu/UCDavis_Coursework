@@ -1,0 +1,61 @@
+---
+title: "Question1"
+output: html_document
+---
+
+To connect to this MongoDB, you need to either on the campus network or connect via UCDavis VPN.
+
+In this question, do not download more than enough resources from the server. Let the server to do all the calculations if possible. (Limit the results to the first 10 rows if necessary.)
+
+The following code connects to a sample airbnb database. A sample of a document can be found at
+https://docs.atlas.mongodb.com/sample-data/sample-airbnb
+
+The collection contains documents that represent the vacation home listing details and reviews of customers about the listing. These documents reflect a randomized subset of the original publicly available source, from several different cities around the globe.
+
+
+```{r}
+library(tidyverse)
+library(mongolite)
+
+m <- mongo("airbnb", db = "data", url = "mongodb://mongouser:secret@alan.ucdavis.edu/data")
+```
+
+(a) How many properties are of `room_type == "Entire home/apt"` and number of beds >= 3.
+
+```{r}
+m$count('{"room_type":"Entire home/apt", "beds":{"$gte":3}}')
+```
+
+
+(b) Query the overall experience ratings (`review_scores_rating`) and prices for all properties and plot a scatter plot of `rating` vs `log(price)`.
+
+```{r}
+dat <- m$find('{}', fields='{"price":true, "review_scores.review_scores_rating":true}')
+plot(dat$review_scores$review_scores_rating, log(dat$price), xlab="log(price)", 
+     ylab="review_scores_rating")
+```
+
+(c) Find all property names that have "Washer" and "Kitchen".
+
+```{r}
+m$find('{"amenities": {"$all": ["Washer", "Kitchen"]}}',
+       fields = '{"name": true, "_id":false}', limit=10)
+```
+
+(d) What are the name, price and number of bedrooms for the property with the largest number of reviews has?
+
+```{r}
+m$find('{}', fields='{"name":true, "price":true, "bedrooms":true, "_id":false}', 
+       sort='{"number_of_reviews":-1}', 
+       limit=1)
+```
+
+(e) Consider all properties which have more than 100 reviews, what is their average price grouped by property type?
+```{r}
+m$aggregate('[
+            {"$match": {"number_of_reviews": {"$gt": 100}}}, 
+            {"$group":
+              {"_id":"$property_type", "avg_price":{"$avg":"$price"}}
+            }
+]') %>% rename(property_type=`_id`) %>% head(10)
+```
