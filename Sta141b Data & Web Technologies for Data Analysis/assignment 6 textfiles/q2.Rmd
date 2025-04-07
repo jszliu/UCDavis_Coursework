@@ -1,0 +1,85 @@
+---
+title: "q2.Rmd"
+output: html_document
+---
+
+```{r}
+library(tidyverse)
+library(tidytext)
+```
+
+```{r}
+simpsons <- read_csv("simpsons_dataset.csv")
+```
+
+This dataset contains a number of scripts played by different Simpson characters. We hope to learn some similarity and differences between different characters.
+
+###### (a) Discard the characters which have less than 50 scripts (rows). Use the same dataset for the following questions.
+
+```{r}
+df <- simpsons %>% group_by(role) %>% summarise(count=n()) %>% arrange(desc(count)) %>% 
+  na.omit() %>% filter(count>=50)
+simpsons <- simpsons %>% filter(role %in% df$role)
+```
+
+
+
+###### (b) What's Homer Simpson most spoken non stop word?
+```{r}
+simpson_tokens <- simpsons %>% 
+  unnest_tokens(word, spoken_words) %>% 
+  anti_join(stop_words)
+
+simpson_tokens %>% filter(role=="Homer Simpson") %>%  group_by(word) %>% 
+  summarise(count=n()) %>% arrange(desc(count)) %>% na.omit() %>%  head(1)
+```
+
+
+
+
+
+###### (c) By using bigrams, what is the most spoken two-word pharse spoken by Homer?
+
+Hint: remember to remove stop words.
+
+```{r}
+df <- simpsons %>% filter(role=="Homer Simpson")
+tibble(id=1:nrow(df), text=df$spoken_words) %>%
+  unnest_tokens(bigram, text, token = "ngrams", n = 2) %>%
+  separate(bigram, c("word1", "word2"), sep = " ") %>%
+  anti_join(stop_words, by=c("word1"="word")) %>% 
+  anti_join(stop_words, by=c("word2"="word")) %>% 
+  na.omit() %>%
+  unite(bigram, word1:word2, sep = " ") %>%
+  group_by(bigram) %>% summarise(count=n()) %>%
+  arrange(desc(count)) %>%
+  head(1)
+```
+
+
+
+###### (d) What's the most significant word spoken by Homer in terms of `tf-idf`?
+```{r}
+simpsons %>% unnest_tokens(word, spoken_words) %>% anti_join(stop_words) %>% group_by(word, role) %>%      summarise(n=n()) %>%
+  bind_tf_idf(word, role, n) %>% 
+  filter(role=="Homer Simpson") %>%
+  arrange(desc(tf_idf)) %>%
+  select(word, role, n, tf_idf) %>%
+  head(1)
+```
+
+
+
+
+
+
+###### (e) Use hierarchical clustering to classify the characters with Family name "Simpson".
+```{r}
+library(proxy)
+tokens <- simpsons %>% filter(grepl("Simpson", role)) %>%
+  unnest_tokens(word, spoken_words) %>% 
+  anti_join(stop_words) %>% group_by(role, word) %>% summarise(n=n())
+docsdissim <- dist(as.matrix(cast_dtm(tokens, role, word, n)), method = "cosine")
+h <- hclust(docsdissim, method = "ward.D2")
+plot(h)
+```

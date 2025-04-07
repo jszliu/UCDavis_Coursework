@@ -1,0 +1,91 @@
+---
+title: "Question 1"
+output: html_document
+---
+
+```{r}
+library(tidyverse)
+```
+
+It is an chance for you to practice your skills on regular expressions.
+
+
+(a) Consider the `phones.txt` files, extract all the telephone/fax numbers and format them as `(xxx)-xxx-xxxx`. (Hint: there should be 24 of them.)
+
+```{r}
+read_file("phones.txt") %>%
+    str_extract_all("\\(?\\d{3}\\)?[ -/\\.]?\\d{3}[ -\\.]\\d{4}") %>% 
+    unlist() %>%
+    str_remove("\\(") %>%
+    str_remove("\\)") %>% 
+    str_replace_all("/", "-") %>%
+    str_replace_all(" ", "-") %>%
+    str_replace_all("\\.", "-") %>%
+    str_replace_all("(\\d{3})(.*)", "(\\1)\\2")
+```
+
+
+(b) Given the two vectors,
+
+```{r}
+strings <- c(
+    "http://www.foufos.gr",
+    "https://www.foufos.gr",
+    "http://foufos.gr",
+    "http://www.foufos.gr/kino",
+    "http://werer.gr",
+    "www.foufos.gr",
+    "www.mp3.com",
+    "www.t.co",
+    "http://t.co",
+    "http://www.t.co",
+    "https://www.t.co",
+    "www.aa.com",
+    "http://aa.com",
+    "http://www.aa.com",
+    "https://www.aa.com",
+    "https://www.aa.com"
+)
+strings2 <- c(
+    "www.foufos",
+    "www.foufos-.gr",
+    "www.-foufos.gr",
+    "foufos.gr",
+    "http://www.foufos",
+    "http://foufos",
+    "www.mp3#.com"
+)
+```
+
+Write a regular expression `regex` that will match all of `strings` and non of the `strings2`.
+
+```{r}
+regex <- "(^www\\.\\w+\\.\\w+$)|(^https?://(www\\.)?\\w+\\.\\w{1,3}(/\\w+)?$)"
+all(str_detect(strings, regex))
+all(str_detect(strings2, regex, negate = TRUE))
+```
+
+
+
+(c) Write a regular expression that matches the answers to the question
+
+> What are the colours of the French flag (in any order)?
+
+```{r}
+answers <- c(
+   "blue, white, red",
+   "blue, white and red",
+   "blue, red, white",
+   "blue, red and white",
+   "white, red, blue",
+   "white, red and blue",
+   "white, blue, red",
+   "white, blue and red",
+   "red, blue, white",
+   "red, blue and white",
+   "red, white, blue",
+   "red, white and blue"
+)
+regex <- "(^blue, white(, )|( and )red$)|(^blue, red(, )|( and )white$)|(^white, red(, )|( and )blue$)|(^white, blue(, )|( and )red$)|(^red, blue(, )|( and )white$)|(^red, white(, )|( and )blue$)"
+all(str_detect(answers, regex))
+```
