@@ -1,0 +1,92 @@
+---
+title: "Question 2"
+output: 
+  html_document: 
+    df_print: default
+---
+
+In this question, you will be asked to use Yelp API to perform some tasks.
+
+First, you will need to register an app on Yelp platform: https://www.yelp.com/developers/v3/manage_app
+
+Copy the API key in the file `.Renviron` and do not push it to github!
+```{r, eval = FALSE}
+usethis::edit_r_environ("project")
+```
+
+
+```{r, eval = FALSE}
+readRenviron(".Renviron")
+```
+
+##### (a) Use the "search" endpoint to search for Davis's "Burgers and Brew" and get its `id`.
+```{r warning=F, message=F}
+library(jsonlite)
+library(tidyverse)
+library(httr)
+
+r <- GET(
+  "https://api.yelp.com/v3/businesses/search",
+  query = list(
+    term="Burgers and Brew",
+    location="403 3rd St Davis, CA 95616",
+    limit=1
+  ),
+  add_headers(Authorization = paste("Bearer", Sys.getenv("KEY")))
+)
+stop_for_status(r)
+json <- content(r, as = "text")
+dat <- fromJSON(json)
+bzId <- dat$businesses$id
+bzId
+```
+
+
+##### (b) Use the "detail" endpoint to fetch "Burgers and Brew"'s business hour.
+```{r}
+r <- GET(
+  str_glue("https://api.yelp.com/v3/businesses/{id}", id=bzId),
+  add_headers(Authorization = paste("Bearer", Sys.getenv("KEY")))
+)
+json <- content(r, as = "text", encoding = "UTF-8")
+dat <- fromJSON(json)
+dat$hours$open
+```
+
+
+##### (c) By using the reviews endpoint, get some reviews for "Burgers and Brew".
+
+PS: there is a hard limitation that only 3 reviews are returned. 
+
+```{r}
+r <- GET(
+  str_glue("https://api.yelp.com/v3/businesses/{id}/reviews", id=bzId),
+  add_headers(Authorization = paste("Bearer", Sys.getenv("KEY")))
+)
+json <- content(r, as = "text", encoding = "UTF-8")
+dat <- fromJSON(json)
+rmarkdown::paged_table(dat$reviews)
+```
+
+
+##### (d) It is possible to use webscrapping to get more reviews from yelp website directly https://www.yelp.com/biz/burgers-and-brew-davis. Try to get 40 reviews (user, date, rating and review content) from it. 
+
+PS: you only need static web scrapping.
+Remark: Do q3 first before attemping this question. It is not easy because yelp is avoiding user to "inpect" the source code.
+
+```{r warning=T}
+library(rvest)
+
+nodes <- read_html("https://www.yelp.com/biz/burgers-and-brew-davis") %>% html_nodes("script") 
+reviews <- nodes[10] %>% html_text() %>% fromJSON()
+dat1 <- as.matrix(reviews$review)
+
+nodes <- read_html("https://www.yelp.com/biz/burgers-and-brew-davis?start=20") %>% html_nodes("script") 
+reviews <- nodes[10] %>% html_text() %>% fromJSON()
+dat2 <- as.matrix(reviews$review)
+dat<- rbind(dat1, dat2)
+dat <- as.data.frame(dat)
+row.names(dat) <- NULL
+dat <- dat %>% select(author,everything())
+rmarkdown::paged_table(dat)
+```

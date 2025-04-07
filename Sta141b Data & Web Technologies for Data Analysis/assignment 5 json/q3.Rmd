@@ -1,0 +1,108 @@
+---
+title: "Question 3"
+output: 
+  html_document: 
+    df_print: kable
+    toc: yes
+---
+
+
+##### (a) By visiting https://statistics.ucdavis.edu/courses/descriptions-undergrad, scrape the course information including course numbers, titles, units and descriptions.
+
+Make a dataframe out of it.
+
+```
+#> # A tibble: 36 x 4
+#>    course  title                     unit  description                          
+#>    <chr>   <chr>                     <chr> <chr>                                
+#>  1 STA 010 Statistical Thinking      4     Lecture—3 hour(s); Discussion/Labora…
+#>  2 STA 012 Introduction to Discrete… 4     Lecture—3 hour(s); Laboratory—1 hour…
+#>  3 STA 013 Elementary Statistics     4     Lecture—3 hour(s); Discussion—1 hour…
+#>  4 STA 01… Elementary Statistics     4     Lecture—1.5 hour(s); Web Virtual Lec…
+#>  5 STA 032 Gateway to Statistical D… 4     Lecture—3 hour(s); Laboratory—1 hour…
+#>  6 STA 09… Seminar                   1-2   Seminar—1-2 hour(s). Prerequisite(s)…
+#>  7 STA 098 Directed Group Study      1-5   Variable. Prerequisite(s): Consent o…
+#>  8 STA 099 Special Study for Underg… 1-5   Variable. Prerequisite(s): Consent o…
+#>  9 STA 100 Applied Statistics for B… 4     Lecture—3 hour(s); Laboratory—1 hour…
+#> 10 STA 101 Advanced Applied Statist… 4     Lecture—3 hour(s); Laboratory—1 hour…
+#> # … with 26 more rows
+```
+```{r}
+library(rvest)
+library(tidyverse)
+headers <- read_html("https://statistics.ucdavis.edu/courses/descriptions-undergrad") %>% html_node("div.node__content") %>%
+  html_nodes("h2") %>% html_text()
+
+descs <- read_html("https://statistics.ucdavis.edu/courses/descriptions-undergrad") %>% html_node("div.node__content") %>%
+  html_nodes("p") %>% html_text()
+```
+
+```{r}
+getCourse <- function(header){
+  course <- unlist(strsplit(header, "—"))[1]
+  gsub("\\s", " ", course)
+}
+
+getTitle <- function(header){
+  temp <- unlist(strsplit(header, "—"))[2]
+  title <- unlist(strsplit(temp, "\\("))[1]
+  title <- gsub("\\s", " ", title)
+  trimws(title)
+}
+
+getUnit <- function(header){
+  temp <- unlist(strsplit(header, "—"))[2]
+  unit <- unlist(strsplit(temp, "\\("))[2]
+  unit <- gsub("\\)", "", unit)
+  trimws(unit)
+}
+
+courses <- sapply(headers, getCourse)
+titles <- sapply(headers, getTitle)
+units <- sapply(headers, getUnit)
+descs <- gsub("\\s", " ", descs)
+df <- data.frame(course=courses, title=titles, unit=units, description=descs)
+rownames(df) <- NULL
+df
+```
+
+
+
+
+
+##### (b) By visiting https://statistics.ucdavis.edu/courses/expanded-descriptions, scrape all the links for lower and upper division courses.
+```{r}
+links <- read_html("https://statistics.ucdavis.edu/courses/expanded-descriptions") %>% html_node("div.node__content") %>%
+  html_nodes("a")
+addrs <- links[1:27]
+hrefs <- html_attr(addrs, "href")
+titles <- html_text(addrs)
+getCourse <- function(title){
+  course = unlist(strsplit(title, "\\."))[1]
+  course <- trimws(course)
+  if(nchar(course)==2){
+    course <- paste0("0", course)
+  }
+  course <- paste("STA", course)
+  course
+}
+courses <- sapply(titles, getCourse)
+hrefs <- paste0("https://statistics.ucdavis.edu",hrefs)
+hrefs
+```
+
+
+##### (c) By using the links from (b), extracts all the prerequisite of the courses and join with the result in (a).
+```{r}
+getPre <- function(url){
+  url %>% read_html() %>% html_node("div.node__content") %>% html_nodes("p") %>%
+    nth(4) %>% html_text() %>% trimws () %>% str_replace("Prerequisite:", "") %>% 
+    trimws ()
+}
+pres <- sapply(hrefs, getPre)
+```
+
+```{r}
+df2 <- data.frame(course=courses, prerequisite=pres)
+df %>% inner_join(df2)
+```

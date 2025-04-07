@@ -1,0 +1,87 @@
+---
+title: "Question 1"
+output: html_document
+---
+
+```{r}
+library(httr)
+library(tidyverse)
+library(jsonlite)
+```
+
+
+[Quote Graden](https://github.com/pprathameshmore/QuoteGarden) is an API for about quotes. The website says that it has more than 5000 quotes.
+
+By using that API, do the followings
+
+
+##### (a) Get a random quote.
+```{r}
+fromJSON("https://quote-garden.herokuapp.com/api/v2/quotes/random")$quote$quoteText
+```
+
+
+##### (b) Get all quotes by Albert Einstein. There are how many of them? 
+(Do not double count identital quotes).
+
+PS 1: there are actually quotes differ only by punctuations, treat them as different quotes for simplicity.
+PS 2: you will need to use `URLencode` to quote any names with spaces.
+
+```{r}
+library(tidyverse)
+lst <- list()
+i <- 1
+repeat{
+    url <- str_glue("https://quote-garden.herokuapp.com/api/v2/authors/{author}?page={page}&limit=200", 
+                    author="Albert Einstein", page=i)
+    url <- URLencode(url)
+    dat <- fromJSON(url)
+    if(length(dat$quotes)==0){
+      break
+    }else{
+      lst[[i]] <- dat$quotes
+    }
+    i <- i + 1
+}
+```
+
+```{r}
+quotes <- do.call("rbind", lst)
+quotes <- quotes[!duplicated(quotes$quoteText),]
+rmarkdown::paged_table(quotes)
+nrow(quotes)
+```
+
+
+
+##### (c) Get a random quote in a genre "education".
+
+Hint: The API does not directly support it, work around it by using loop.
+```{r}
+quote <- ""
+repeat{
+    dat <- fromJSON("https://quote-garden.herokuapp.com/api/v2/quotes/random")
+    if(!is.null(dat$quote$quoteGenre)){
+      if(dat$quote$quoteGenre=="education"){
+        quote <- dat$quote$quoteText
+        break
+      }
+    }
+}
+quote
+```
+
+
+
+##### (d) Who said the following quote?
+
+> When performance exceeds ambition, the overlap is called success.
+
+Hint: the endpoint for searching quotes in missing from the website, but it is on the github repo.
+
+```{r}
+url <- str_glue("https://quote-garden.herokuapp.com/api/v2/quotes/{query}?page=1&limit=1", query="When performance exceeds ambition, the overlap is called success.")
+url <- URLencode(url)
+dat <- fromJSON(url)
+dat$quotes$quoteAuthor
+```
