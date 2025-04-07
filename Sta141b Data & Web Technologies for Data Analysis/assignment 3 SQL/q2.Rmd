@@ -1,0 +1,84 @@
+---
+title: "Question 2"
+---
+
+```{r, message = FALSE}
+library(DBI)
+library(tidyverse)
+```
+
+
+In this question, we are going to learn how to create a sql database on google cloud platform.
+
+- First, go to canvas and click the Google Cloud Student Coupon Retrieval Link. You will be given $50 dollars to use any google cloud services. (You may receive two emails, one for confirmation, another for redeeming the coupon)
+- Then, go to https://console.cloud.google.com/ and create a new project by clicking on the [Select a project] button. You project should be under the organization `UCDAVIS.EDU`.
+- Click on [Cloud SQL] icon on the startup page or the [SQL] tab in the menu.
+- In the SQL tab, choose PostgreSQL and create an new instance.
+- Click on "Show configuration options". In "Machine types and storage", drag the slidebar to the left to choose "1 shared vCPU" and memory 0.6G. (It is the cheapest option for testing purpose) 
+- Choose a password for the server, I suggest using the generated password. (And keep it somewhere else)
+- It may take around 5 minutes for the server to setup. Copy the public ip address once it is done.
+- Then open the instance and go the [Databases] tab; create a new database, call it "demo".
+- Then go to [Connections], click [Add network] and type "0.0.0.0/0" in Network and save. It will make sure that your server is visible to the internet.
+
+
+Of course you don't want to put the password in your assignment.
+Password should be stored in a file `.Renviron`. The file could be created by using the following command.
+```{r, eval = FALSE}
+usethis::edit_r_environ("project")
+```
+Put down your password in the file, (replace XXXXXXXXXXXXXXXXXX with your password)
+```
+DATABASEPW=XXXXXXXXXXXXXXXXXX
+```
+One your are done, run the following line
+```{r, eval = FALSE}
+readRenviron(".Renviron")
+```
+Then your password could be retrived by `Sys.getenv("DATABASEPW")`.
+
+The `.Renviron` won't be pushed to the git repo because the file was specified in `.gitignore`.
+
+
+##### Connect to the database
+
+```{r}
+library(DBI)
+host <- "34.66.131.25"  # replace it with your server ip
+mydb <- dbConnect(
+  RPostgres::Postgres(),
+  dbname = "demo",
+  user = "postgres", password = Sys.getenv("DATABASEPW"), host = host
+)
+```
+
+Then we import the January part of `nycflights13::flights` to the database. (This chunk of code should only be execuuted once, so we have `eval = FALSE` to avoid running it again when knitting.)
+
+```{r, eval = FALSE}
+# to save time, we only import January data
+mydb %>% dbWriteTable(
+  "flights",
+  nycflights13::flights %>% filter(month == 1)  
+)
+```
+
+##### (a) Verify that we have a table `flights` in the database and count the number of rows.
+```{r}
+dbListTables(mydb)
+```
+
+```{r}
+mydb %>% tbl("flights") %>% summarize(count=n())
+```
+
+
+##### (b) Use SQL to count the number of flights by destinations in January.
+
+```{sql connection=mydb}
+select dest, count(*) as NUM from flights where month =1 group by dest;
+```
+
+##### (c) Use SQL to count the average air time by carrier in January.
+```{sql connection=mydb}
+select carrier, AVG(air_time) as avg_time from flights where month =1 group by carrier;
+```
+

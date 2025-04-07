@@ -1,0 +1,69 @@
+---
+title: "Question 3"
+---
+
+We use the Northwind database (northwind.sqlite) in the question. It provides you with a good database structure and sales data. 
+
+See https://www.zentut.com/sql-tutorial/sql-sample-database/ for a diagram.
+
+
+Database tables
+The following explains each table in the Northwind database:
+
+- Customers – stores customer master data
+- Orders – stores transaction sale orders from customers
+- OrderDetails – stores line items of sale orders
+- Products – stores products master data
+- Suppliers – stores suppliers master data
+- Shippers – stores shippers master data
+- Region – stores region master data
+- Territories – store territories master data
+- Employees – store employees master data
+- EmployeeTerritories – store relationship between employee and territory.
+
+
+Use SQL queries to answer the following questions.
+
+
+
+
+```{r}
+library(tidyverse)
+library(DBI)
+northwind <- dbConnect(RSQLite::SQLite(), dbname = "northwind.sqlite")
+northwind %>% dbListTables()
+```
+
+##### (a) Write a query to get Product name and quantity/unit.
+```{sql connection=northwind}
+SELECT ProductName,QuantityPerUnit FROM 'Product'
+```
+##### (a) Write a query to get discontinued Product list (Product ID and name). 
+
+```{sql connection=northwind}
+SELECT Id, ProductName FROM `Product` WHERE `Discontinued`=1;
+```
+
+##### (b) Write a query to get Product list (id, name, unit price) where current products cost less than $20.
+```{sql connection=northwind}
+SELECT Id, ProductName, UnitPrice FROM `Product` WHERE UnitPrice<20;
+```
+
+##### (c) Write a query to count current and discontinued products.
+```{sql connection=northwind}
+SELECT Discontinued,COUNT(*)
+FROM `Product` 
+Group by Discontinued;
+```
+
+
+##### (d) Write a query to get most expense and least expensive Product list (name and unit price).
+```{sql connection=northwind}
+SELECT ProductName, MAX(UnitPrice) AS PRICE FROM `Product` 
+UNION SELECT ProductName, MIN(UnitPrice) AS PRICE FROM `Product` ;
+```
+
+##### (e) Write a query to get Product list (name, unit price) of above average price
+```{sql connection=northwind}
+SELECT ProductName, UnitPrice FROM `Product` WHERE UnitPrice > (SELECT AVG(UnitPrice) FROM `Product`)
+```

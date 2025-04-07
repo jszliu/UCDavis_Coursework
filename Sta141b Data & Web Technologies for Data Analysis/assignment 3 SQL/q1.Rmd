@@ -1,0 +1,95 @@
+---
+title: "Question 1"
+---
+
+Note: You need to be either on the campus or connected to UCD vpn in order to connect the postgres server on alan.ucdavis.edu.
+
+```{r}
+library(DBI)
+chinook <- dbConnect(
+  RPostgres::Postgres(),
+  dbname = "chinook",
+  user = "psqluser", password = "secret", host = "alan.ucdavis.edu"
+)
+```
+
+
+The Chinook data model represents a digital media store, including tables for artists, albums, media tracks, invoices and customers.
+
+- Media-related data was created using real data from an Apple iTunes library.
+- Customer and employee information was created using fictitious names and addresses that can be located on Google maps, and other well formatted data (phone, fax, email, etc.)
+- Sales information was auto generated using random data for a four year period.
+- There are 11 tables in the chinook sample database.
+
+  - `Employee` table stores employees data such as employee id, last name, first name, etc. It also has a field named ReportsTo to specify who reports to whom.
+  - `Customer` table stores customers data.
+  - `Invoice` & `InvoiceLine` tables: these two tables store invoice data. The invoices table stores invoice header data and the invoice line table stores the invoice line items data.
+  - `Artist` table stores artists data. It is a simple table that contains only the artist id and name.
+  - `Albums` table stores data about a list of tracks. Each album belongs to one artist. However, one artist may have multiple albums.
+  - `MediaType` table stores media types such as MPEG audio and AAC audio file.
+  - `Genre` table stores music types such as rock, jazz, metal, etc.
+  - `Track` table store the data of songs. Each track belongs to one album.
+  - `Playlist` & `PlaylistTrack` tables: playlists table store data about playlists. Each playlist contains a list of tracks. Each track may belong to multiple playlists. The relationship between the playlists table and tracks table is many-to-many. The playlist track table is used to reflect this relationship.
+  
+  See for example https://docs.yugabyte.com/images/sample-data/chinook/chinook-er-diagram.png for a database diagram.
+
+
+For each of the followings, use both dplyr and sql approaches to get the answer.
+
+
+##### (a) What is the title of the album with AlbumId 31?
+```{sql connection = chinook}
+SELECT "Title" FROM "Album" WHERE "AlbumId"=31;
+```
+
+```{r}
+library(dplyr)
+chinook %>% tbl("Album") %>% filter(AlbumId==31) %>% select(Title) %>% collect()
+```
+
+
+##### (b) List all the albums by artists with the word ‘black’ in their name.
+```{sql connection = chinook}
+SELECT b."Title" FROM "Artist" a JOIN "Album" b ON a."ArtistId"=b."ArtistId" WHERE a."Name" ILIKE '%black%';
+```
+
+```{r}
+chinook %>% tbl("Artist") %>% filter(grepl("black", tolower(Name))) %>% inner_join(tbl(chinook, "Album"), by="ArtistId") %>% select("Title") %>%  collect() 
+```
+
+
+##### (c) Find the name and length (in seconds) of all tracks that have both length between 30 and 40 seconds, and genre Latin.
+```{r}
+chinook %>% tbl("Genre") %>% filter(Name=="Latin") %>% 
+  inner_join(tbl(chinook, "Track"), by="GenreId") %>% 
+  filter(Milliseconds>30000 & Milliseconds < 40000) %>% 
+  select(Name.y, Milliseconds) %>% 
+  transmute(Name=Name.y, Milliseconds=Milliseconds/1000) %>% 
+  collect() 
+```
+
+```{sql connection = chinook}
+SELECT a."Name", a."Milliseconds"/1000 AS "Length" FROM "Track" a JOIN "Genre" b ON        a."GenreId"=b."GenreId" WHERE  b."Name"='Latin' AND a."Milliseconds" > 30000 and a."Milliseconds" < 40000;
+```
+
+
+##### (d) List each country and the number of customers in that country. (You only need to include countries that have customers.)
+```{sql connection = chinook}
+SELECT "Country", COUNT(*) AS "Number" FROM "Customer" GROUP BY "Country";
+```
+
+```{r}
+chinook %>% tbl("Customer") %>% group_by(Country) %>% summarise(Number=n()) %>% collect()
+```
+
+
+##### (e) Find the artist (or several artists) with the largest number of countries where the listeners are from. To certain extent, think of the most culturally diverse artists.
+
+```{r}
+chinook %>% tbl("Customer") %>% inner_join(tbl(chinook, "Invoice"), by="CustomerId") %>% inner_join(tbl(chinook, "InvoiceLine"), by="InvoiceId") %>% inner_join(tbl(chinook, "Track"), by="TrackId") %>% inner_join(tbl(chinook,"Album"), by="AlbumId") %>% 
+  inner_join(tbl(chinook, "Artist"), by="ArtistId") %>% group_by(Name.y) %>% summarise(num=n_distinct(Country)) %>% arrange(desc(num)) %>% head(1) %>% transmute(Name=Name.y) %>% collect()
+```
+
+```{sql connection = chinook}
+SELECT f."Name", COUNT(DISTINCT(a."Country")) AS "Num" FROM "Customer" a JOIN "Invoice" b ON a."CustomerId"=b."CustomerId" JOIN "InvoiceLine" c ON c."InvoiceId"=b."InvoiceId" JOIN "Track" d ON d."TrackId"=c."TrackId" JOIN "Album" e ON e."AlbumId"=d."AlbumId" JOIN "Artist" f ON f."ArtistId"=e."ArtistId" GROUP BY f."Name" ORDER BY "Num" DESC LIMIT 1;
+```
